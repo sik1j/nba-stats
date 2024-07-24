@@ -95,33 +95,40 @@ export async function getNbaTeamScheduleBySeason(acronym: string, year: string) 
 
 export async function getBoxscore(id: string) {
     function rowData(row: Element) {
-                const name = {name: row.querySelector('[data-stat="player"]')!.textContent!};
-                let other_fields;
-                if (row.querySelector('[data-stat="reason"]')) {
-                    other_fields = {
-                        reason_out: row.querySelector('[data-stat="reason"]')!.textContent!,
-                    };
-                } else {
-                    other_fields = {
-                        minutes: row.querySelector('[data-stat="mp"]')!.textContent!,
-                        points: row.querySelector('[data-stat="pts"]')!.textContent!,
-                        field_goal_percentage: row.querySelector('[data-stat="fg_pct"]')!.textContent!,
-                    };
-                }
-
-                return {
-                    ...name,
-                    ...other_fields
-                }
+        const nameElem = row.querySelector('[data-stat="player"]')!;
+        const name = {
+            text: nameElem.textContent!,
+            link: nameElem.querySelector('a')!.getAttribute('href')!
+        };
+        let other_fields;
+        if (row.querySelector('[data-stat="reason"]')) {
+            other_fields = {
+                reason_out: row.querySelector('[data-stat="reason"]')!.textContent!,
             };
+        } else {
+            other_fields = {
+                minutes: row.querySelector('[data-stat="mp"]')!.textContent!,
+                points: row.querySelector('[data-stat="pts"]')!.textContent!,
+                field_goal_percentage: row.querySelector('[data-stat="fg_pct"]')!.textContent!,
+            };
+        }
+
+        return {
+            name,
+            ...other_fields
+        }
+    };
+
     function teamBoxScore(teamAcronym: string) {
         const teamBasicBoxscoreRows = Array.from(doc.querySelectorAll(`#box-${teamAcronym}-game-basic > tbody > tr:not([class])`)!);
         assert(teamBasicBoxscoreRows.length > 0);
 
         const teamBoxscore = {
-            starters: teamBasicBoxscoreRows.filter(row => Number(row.getAttribute('data-row')!) <= 4).map(rowData),
-            reserves: teamBasicBoxscoreRows.filter(row => Number(row.getAttribute('data-row')!) >= 6).map(rowData),
+            starters: teamBasicBoxscoreRows.slice(0,5).map(rowData),
+            reserves: teamBasicBoxscoreRows.slice(5).map(rowData),
         };
+
+        console.log(teamBoxscore.starters.length, teamBoxscore.reserves.length);
 
         return teamBoxscore;
     }
