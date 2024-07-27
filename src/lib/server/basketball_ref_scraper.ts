@@ -94,6 +94,45 @@ export async function getNbaTeamScheduleBySeason(acronym: string, year: string) 
 }
 
 export async function getBoxscore(id: string) {
+    function rowData(row: Element) {
+        const nameElem = row.querySelector('[data-stat="player"]')!;
+        const name = {
+            text: nameElem.textContent!,
+            link: nameElem.querySelector('a')!.getAttribute('href')!
+        };
+        let other_fields;
+        if (row.querySelector('[data-stat="reason"]')) {
+            other_fields = {
+                reason_out: row.querySelector('[data-stat="reason"]')!.textContent!,
+            };
+        } else {
+            other_fields = {
+                minutes: row.querySelector('[data-stat="mp"]')!.textContent!,
+                points: row.querySelector('[data-stat="pts"]')!.textContent!,
+                field_goal_percentage: row.querySelector('[data-stat="fg_pct"]')!.textContent!,
+            };
+        }
+
+        return {
+            name,
+            ...other_fields
+        }
+    }
+
+    function teamBoxScore(teamAcronym: string) {
+        const teamBasicBoxscoreRows = Array.from(doc.querySelectorAll(`#box-${teamAcronym}-game-basic > tbody > tr:not([class])`)!);
+        assert(teamBasicBoxscoreRows.length > 0);
+
+        const teamBoxscore = {
+            starters: teamBasicBoxscoreRows.slice(0, 5).map(rowData),
+            reserves: teamBasicBoxscoreRows.slice(5).map(rowData),
+        };
+
+        console.log(teamBoxscore.starters.length, teamBoxscore.reserves.length);
+
+        return teamBoxscore;
+    }
+
     const doc = await getDocument(`https://www.basketball-reference.com/boxscores/${id}.html`);
 
     const scores = doc.querySelectorAll('div.scores');
@@ -109,75 +148,8 @@ export async function getBoxscore(id: string) {
     const homeTeamAcronym = homeTeamScoreboardAnchor.getAttribute('href')!.split('/')[2];
     const awayTeamAcronym = awayTeamScoreboardAnchor.getAttribute('href')!.split('/')[2];
 
-    const homeTeamBasicBoxscoreRows = Array.from(doc.querySelectorAll(`#box-${homeTeamAcronym}-game-basic > tbody > tr:not([class])`)!);
-    assert(homeTeamBasicBoxscoreRows.length > 0);
-
-    const homeTeamBoxscore = {
-        starters: homeTeamBasicBoxscoreRows.filter(row => Number(row.getAttribute('data-row')!) <= 4).map(row => {
-            if (row.querySelector('[data-stat="reason"]')) {
-                return {
-                    name: row.querySelector('[data-stat="player"]')!.textContent!,
-                    reason_out: row.querySelector('[data-stat="reason"]')!.textContent!,
-                }
-            }
-            return {
-                name: row.querySelector('[data-stat="player"]')!.textContent!,
-                minutes: row.querySelector('[data-stat="mp"]')!.textContent!,
-                points: row.querySelector('[data-stat="pts"]')!.textContent!,
-                field_goal_percentage: row.querySelector('[data-stat="fg_pct"]')!.textContent!,
-            };
-        }),
-        reserves: homeTeamBasicBoxscoreRows.filter(row => Number(row.getAttribute('data-row')!) >= 6).map(row => {
-            if (row.querySelector('[data-stat="reason"]')) {
-                return {
-                    name: row.querySelector('[data-stat="player"]')!.textContent!,
-                    reason_out: row.querySelector('[data-stat="reason"]')!.textContent!,
-                }
-            }
-            return {
-                name: row.querySelector('[data-stat="player"]')!.textContent!,
-                minutes: row.querySelector('[data-stat="mp"]')!.textContent!,
-                points: row.querySelector('[data-stat="pts"]')!.textContent!,
-                field_goal_percentage: row.querySelector('[data-stat="fg_pct"]')!.textContent!,
-            };
-        })
-    };
-
-
-
-    const awayTeamBasicBoxscoreRows = Array.from(doc.querySelectorAll(`#box-${awayTeamAcronym}-game-basic > tbody > tr:not([class])`)!);
-    assert(awayTeamBasicBoxscoreRows.length > 0);
-
-    const awayTeamBoxscore = {
-        starters: awayTeamBasicBoxscoreRows.filter(row => Number(row.getAttribute('data-row')!) <= 4).map(row => {
-            if (row.querySelector('[data-stat="reason"]')) {
-                return {
-                    name: row.querySelector('[data-stat="player"]')!.textContent!,
-                    reason_out: row.querySelector('[data-stat="reason"]')!.textContent!,
-                }
-            }
-            return {
-                name: row.querySelector('[data-stat="player"]')!.textContent!,
-                minutes: row.querySelector('[data-stat="mp"]')!.textContent!,
-                points: row.querySelector('[data-stat="pts"]')!.textContent!,
-                field_goal_percentage: row.querySelector('[data-stat="fg_pct"]')!.textContent!,
-            };
-        }),
-        reserves: awayTeamBasicBoxscoreRows.filter(row => Number(row.getAttribute('data-row')!) >= 6).map(row => {
-            if (row.querySelector('[data-stat="reason"]')) {
-                return {
-                    name: row.querySelector('[data-stat="player"]')!.textContent!,
-                    reason_out: row.querySelector('[data-stat="reason"]')!.textContent!,
-                }
-            }
-            return {
-                name: row.querySelector('[data-stat="player"]')!.textContent!,
-                minutes: row.querySelector('[data-stat="mp"]')!.textContent!,
-                points: row.querySelector('[data-stat="pts"]')!.textContent!,
-                field_goal_percentage: row.querySelector('[data-stat="fg_pct"]')!.textContent!,
-            };
-        })
-    };
+    const homeTeamBoxscore = teamBoxScore(homeTeamAcronym);
+    const awayTeamBoxscore = teamBoxScore(awayTeamAcronym);
 
     return {
         homeTeam: {
@@ -190,5 +162,34 @@ export async function getBoxscore(id: string) {
             score: awayTeamScore,
             boxscore: awayTeamBoxscore
         }
+    }
+}
+
+export async function test() {
+    const doc = await getDocument('https://www.basketball-reference.com/players/j/jamesle01.html');
+
+    const table = doc.querySelectorAll('table')[1];
+    return getTableData(table);
+}
+
+function getAllTableData(doc: Document) {
+    const tables = Array.from(doc.querySelectorAll('table'));
+
+    return tables.map(table => getTableData(table));
+}
+
+function getTableData(table: HTMLTableElement) {
+    const header = Array.from(table.querySelectorAll('thead > tr > th'))
+        .map(th => th.textContent!);
+    const body = Array.from(table.querySelectorAll('tbody > tr'))
+        .map(tr => Array.from(tr.children))
+        .map(row => row.map(data => data.textContent!));
+    const footer = Array.from(table.querySelectorAll('tfoot > tr'))
+        .map(tr => Array.from(tr.children).map(data => data.textContent!));
+
+    return {
+        header,
+        body,
+        footer
     }
 }
