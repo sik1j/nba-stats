@@ -117,14 +117,14 @@ export async function getBoxscore(id: string) {
             name,
             ...other_fields
         }
-    };
+    }
 
     function teamBoxScore(teamAcronym: string) {
         const teamBasicBoxscoreRows = Array.from(doc.querySelectorAll(`#box-${teamAcronym}-game-basic > tbody > tr:not([class])`)!);
         assert(teamBasicBoxscoreRows.length > 0);
 
         const teamBoxscore = {
-            starters: teamBasicBoxscoreRows.slice(0,5).map(rowData),
+            starters: teamBasicBoxscoreRows.slice(0, 5).map(rowData),
             reserves: teamBasicBoxscoreRows.slice(5).map(rowData),
         };
 
@@ -162,5 +162,34 @@ export async function getBoxscore(id: string) {
             score: awayTeamScore,
             boxscore: awayTeamBoxscore
         }
+    }
+}
+
+export async function test() {
+    const doc = await getDocument('https://www.basketball-reference.com/players/j/jamesle01.html');
+
+    const table = doc.querySelectorAll('table')[1];
+    return getTableData(table);
+}
+
+function getAllTableData(doc: Document) {
+    const tables = Array.from(doc.querySelectorAll('table'));
+
+    return tables.map(table => getTableData(table));
+}
+
+function getTableData(table: HTMLTableElement) {
+    const header = Array.from(table.querySelectorAll('thead > tr > th'))
+        .map(th => th.textContent!);
+    const body = Array.from(table.querySelectorAll('tbody > tr'))
+        .map(tr => Array.from(tr.children))
+        .map(row => row.map(data => data.textContent!));
+    const footer = Array.from(table.querySelectorAll('tfoot > tr'))
+        .map(tr => Array.from(tr.children).map(data => data.textContent!));
+
+    return {
+        header,
+        body,
+        footer
     }
 }
